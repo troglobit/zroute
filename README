@@ -1,0 +1,11 @@
+README
+
+Very simple command line client for managing Zebra static routes from
+the command line. Useful if Zebra is your route manager and you want
+your DHCP client, or PPPoE client, to set default gateway dynamically
+via Zebra instead of as kernel routes.
+
+Please feel free to contribute additions to this for metric, multiple next
+hop, distance and other missing features.
+
+                             -- Joachim Nilsson <troglobit@gmail.com>
