@@ -16,8 +16,8 @@ sysconfdir   ?= /etc
 datadir       = $(prefix)/share/doc/zroute
 mandir        = $(prefix)/share/man/man8
 
-CFLAGS        = -O2 -W -Wall -Werror
-#CFLAGS       = -O -g
+CFLAGS       += -O2 -W -Wall -Werror
+#CFLAGS      += -O -g
 CPPFLAGS     += -DHAVE_INET_NTOP -DHAVE_SOCKLEN_T -DQUAGGA_NO_DEPRECATED_INTERFACES
 CPPFLAGS     += -D'VERSION="$(VERSION)"'
 LDLIBS        = -lzebra
