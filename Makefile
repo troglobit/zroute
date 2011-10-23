@@ -1,7 +1,7 @@
 # Makefile for zroute, a tool for intracting with Zebra         -*-Makefile-*-
 
 # VERSION       ?= $(shell git tag -l | tail -1)
-VERSION      ?= 0.1.1
+VERSION      ?= 0.1.2
 NAME          = zroute
 EXEC          = $(NAME)
 PKG           = $(NAME)-$(VERSION)
@@ -16,9 +16,10 @@ sysconfdir   ?= /etc
 datadir       = $(prefix)/share/doc/zroute
 mandir        = $(prefix)/share/man/man8
 
-CPPFLAGS      = -DHAVE_INET_NTOP -DHAVE_SOCKLEN_T -DQUAGGA_NO_DEPRECATED_INTERFACES
+CFLAGS        = -O2 -W -Wall -Werror
+#CFLAGS       = -O -g
+CPPFLAGS     += -DHAVE_INET_NTOP -DHAVE_SOCKLEN_T -DQUAGGA_NO_DEPRECATED_INTERFACES
 CPPFLAGS     += -D'VERSION="$(VERSION)"'
-CFLAGS        = -Wall -g -I/usr/include/quagga
 LDLIBS        = -lzebra
 OBJS          = zroute.o util.o
 

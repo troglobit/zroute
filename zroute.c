@@ -22,11 +22,11 @@
 #include <err.h>
 #include <poll.h>
 
-/* Zebra includes */
-#include <zebra.h>
-#include <thread.h>
-#include <prefix.h>
-#include <zclient.h>
+/* Quagga includes */
+#include <quagga/zebra.h>
+#include <quagga/thread.h>
+#include <quagga/prefix.h>
+#include <quagga/zclient.h>
 
 /* Local includes. */
 #include "util.h"
@@ -122,8 +122,8 @@ pend_zebra_reply (struct zclient *zclient)
       DBG("Zebra replied with %d bytes of data:", ret);
       if (ret > 0)
         {
-          if (debug)
-            write (STDERR_FILENO, dummy, ret);
+          if (debug && -1 == write (STDERR_FILENO, dummy, ret))
+            DBG("Failed writing return data from Zebra to stderr.");
         }
     }
   while (ret > 0);
