@@ -18,29 +18,20 @@
  * 02111-1307, USA.  
  */
 
+/* System includes */
 #include <err.h>
-#include <sys/types.h>
-#include <sys/socket.h>
-#include <netinet/in.h>
-#include <sys/time.h>
-#include <time.h>
-#include <stdio.h>
-#include <netdb.h>
-#include <string.h>
 #include <poll.h>
 
 /* Zebra includes */
 #include <zebra.h>
-#include <version.h>
-#include <getopt.h>
 #include <thread.h>
-#include <stream.h>
 #include <prefix.h>
-#include <log.h>
 #include <zclient.h>
 
 /* Local includes. */
 #include "util.h"
+
+#define ZROUTE_METRIC_DEFAULT 0
 
 static int debug = 0;
 extern char *__progname;
@@ -92,12 +83,12 @@ zroute (struct zclient *zclient, u_char op, struct in_addr network, u_char len, 
 
   /* The ZAPI_MESSAGE_NEXTHOP flag must be set for both nexthop AND ifindex routes! */
   SET_FLAG (zr.message, ZAPI_MESSAGE_NEXTHOP);
-  if (nexthop->s_addr != INADDR_ANY)
+  if (nexthop && nexthop->s_addr != INADDR_ANY)
     {
       /* XXX: Possible to support >1, add that support! */
       zr.nexthop_num = 1;
       zr.nexthop     = &nexthop;
-      DBG("Setting route via nexthop 0x%x", nexthop->s_addr);
+      DBG("via nexthop 0x%x", nexthop->s_addr);
     }
 
   if (ifname)
@@ -106,7 +97,7 @@ zroute (struct zclient *zclient, u_char op, struct in_addr network, u_char len, 
       zr.ifindex_num = 1;
       ifindex        = zinet_ifindex (ifname);
       zr.ifindex     = &ifindex;
-      DBG("Setting route via ifname:%s => ifindex:%d", ifname, ifindex);
+      DBG("via ifname:%s => ifindex:%d", ifname, ifindex);
     }
 
   SET_FLAG (zr.message, ZAPI_MESSAGE_METRIC);
@@ -166,91 +157,112 @@ usage (void)
 int
 main (int argc, char **argv)
 {
-  int ret, op, len;
+  int opt = 1, ret, len = -1, metric = ZROUTE_METRIC_DEFAULT;
+  u_char op = 0;
   struct in_addr net, gw;
+  char *token, *ptr;
   char *target = NULL, *netmask = NULL, *gateway = NULL, *ifname = NULL;
   struct zclient *zclient = NULL;
-  struct option long_options[] = {
-    {"verbose", 0, NULL, 'V'},
-    {"version", 0, NULL, 'v'},
-    {"help",    0, NULL, '?'},
-    {NULL,      0, NULL,   0}
-  };
 
-  do
+  memset (&gw, 0, sizeof (gw));
+  memset (&net, 0, sizeof (net));
+
+  if (argc < 2)
+    return usage ();
+
+  while (opt < argc)
     {
-      ret = getopt_long (argc, argv, "?hvVL", long_options, NULL);
-      switch (ret)
+      token = argv[opt++];
+
+      if (!strcmp (token, "-V") || !strcmp (token, "--verbose"))
         {
-        case 'v':
+          debug = 1;
+          continue;
+        }
+
+      if (!strcmp (token, "-v") || !strcmp (token, "--version"))
+        {
           printf ("%s\n", program_version);
           return 0;
-
-        case 'V':              /* Verbose */
-          debug = 1;
-          break;
-
-        case ':':              /* Missing parameter for option. */
-        case '?':              /* Unknown option. */
-        case 'h':
-        default:
-          return usage ();
-
-        case -1:               /* No more options. */
-          break;
         }
+
+      if (!strcmp (token, "-h") || !strcmp (token, "--help"))
+        {
+          return usage ();
+        }
+
+      if (!op && (!strcmp (token, "add") || !strcmp (token, "del")))
+        {
+          if (!strcmp (token, "add"))
+            op = ZEBRA_IPV4_ROUTE_ADD;
+          else
+            op = ZEBRA_IPV4_ROUTE_DELETE;
+
+          target = argv[opt++];
+          if (!strcmp (target, "default"))
+            {
+              target = "0.0.0.0";
+              len = 0;
+            }
+          else
+            {
+              if (!strcmp (target, "-net"))
+                {
+                  /* Do nothing, netmask or /LEN required. */
+                  target = argv[opt++];
+                }
+              else if (!strcmp (target, "-host"))
+                {
+                  target = argv[opt++];
+                  len = 32;
+                }
+
+              ptr = strchr (target, '/');
+              if (ptr)
+                {
+                  *ptr = 0;
+                  len = atoi (++ptr);
+                }
+            }
+
+          net = zinet_aton (target);
+          DBG("op:%s target:%s/%d", op == ZEBRA_IPV4_ROUTE_ADD ? "ADD" : "DEL", target, len);
+          continue;
+        }
+
+      if (!strcmp (token, "netmask"))
+        {
+          netmask = argv[opt++];
+          len = zinet_masktolen (zinet_aton (netmask));
+          DBG("target:%s netmask %s => len %d", target, netmask, len);
+          continue;
+        }
+
+      if (!strcmp (token, "gw"))
+        {
+          gateway = argv[opt++];
+          DBG("gw:%s", gateway);
+          gw = zinet_aton (gateway);
+          continue;
+        }
+
+      if (!strcmp (token, "dev"))
+        {
+          ifname = argv[opt++];
+          DBG("dev:%s", ifname);
+          continue;
+        }
+
+      if (!strcmp (token, "metric"))
+        {
+          token = argv[opt++];
+          metric = atoi (token);
+          DBG("metric:%d", metric);
+          continue;
+        }
+
+      return usage ();
     }
-  while (ret != -1);
-
-  DBG("optind:%d argc:%d", optind, argc);
-  if (optind >= argc)
-    return usage ();
-
-  if (!strcmp (argv[optind], "del"))
-    op = 1;
-  else if (!strcmp (argv[optind], "add"))
-    op = 0;
-  else
-    return usage ();
-  optind++;
-
-  DBG("op:%s", op ? "DEL" : "ADD");
-
-  /* Gateway is interpreted as an outbound interface if it begins with
-   * letter. Non-numeric gateways are not supported. */
-  target = argv[optind++];
-  netmask = strchr (target, '/');
-  if (netmask)
-    {
-      *netmask = 0;
-      len = atoi (++netmask);
-      DBG("target:%s/%d", target, len);
-    }
- else
-   {
-      netmask = argv[optind++];
-      len = zinet_masktolen (zinet_aton (netmask));
-      DBG("target:%s netmask %s => len %d", target, netmask, len);
-   }
-
-  gateway = argv[optind++];
-  if (isalpha (gateway[0]))
-    {
-      ifname = gateway;
-      gateway = NULL;
-      DBG("ifname:%s", ifname);
-    }
-
-  if (gateway)
-    {
-      DBG("gateway:%s", gateway);
-      gw = zinet_aton (gateway);
-    }
-  else
-    {
-      memset (&gw, 0, sizeof (gw));
-    }
-  net = zinet_aton (target);
 
   DBG("Connecting to Zebra routing daemon.");
   zclient = setup_zebra_connection ();
@@ -258,10 +270,7 @@ main (int argc, char **argv)
     errx (1, "Failed connecting to zebra routing daemon.");
 
   DBG("Calling Zebra to %s route.", op ? "del" : "add");
-
-  /* XXX: Hard coded metric, please add support when adding support for suboption markers.
-   *      E.g., dev <IFNAME> metric <METRIC>, etc. */
-  ret = zroute (zclient, op ? ZEBRA_IPV4_ROUTE_DELETE : ZEBRA_IPV4_ROUTE_ADD, net, len, &gw, ifname, 10);
+  ret = zroute (zclient, op, net, len, gateway ? &gw : NULL, ifname, metric);
   if (ret)
     errx (1, "Failed %s route, ret:%d\n", op ? "deleting" : "adding", ret);
 

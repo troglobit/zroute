@@ -1,7 +1,7 @@
 # Makefile for zroute, a tool for intracting with Zebra         -*-Makefile-*-
 
 # VERSION       ?= $(shell git tag -l | tail -1)
-VERSION      ?= 0.99.20
+VERSION      ?= 0.1.0
 NAME          = zroute
 EXEC          = $(NAME)
 PKG           = $(NAME)-$(VERSION)
