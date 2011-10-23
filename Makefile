@@ -1,7 +1,7 @@
 # Makefile for zroute, a tool for intracting with Zebra         -*-Makefile-*-
 
 # VERSION       ?= $(shell git tag -l | tail -1)
-VERSION      ?= 0.1.0
+VERSION      ?= 0.1.1
 NAME          = zroute
 EXEC          = $(NAME)
 PKG           = $(NAME)-$(VERSION)
@@ -38,7 +38,7 @@ clean:
 distclean:
 	-@$(RM) $(OBJS) core $(EXEC) *.BAK *~ *.o *.map .*.d *.out tags TAGS
 
-dist:
+dist: distclean
 	@echo "Building bzip2 tarball of $(PKG) in parent dir..."
 	git archive --format=tar --prefix=$(PKG)/ $(VERSION) | bzip2 >../$(ARCHIVE)
 	@(cd ..; md5sum $(ARCHIVE) | tee $(ARCHIVE).md5)

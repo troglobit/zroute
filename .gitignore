@@ -1,0 +1,9 @@
+zroute
+debian/files
+zroute.map
+ChangeLog.*
+*.o
+.*.d
+*~
+\#*
+.\#*
