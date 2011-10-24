@@ -23,6 +23,16 @@
 
 #define DBG(fmt, args...) if (debug) fprintf (stderr, "%s:%s() - " fmt "\n", __progname, __func__, ##args)
 
+#define POP_TOKEN()                   pop_token       (&opt, argc, argv, NULL)
+#define POP_TOKEN_MATCH(keyword, str) pop_token_match (&opt, argc, argv, token, keyword, &str)
+
+extern char   *__progname;
+
+int            usage           (void);
+
+char          *pop_token       (int *opt, int argc, char *argv[], char *keyword);
+int            pop_token_match (int *opt, int argc, char *argv[], char *token, char *keyword, char **result);
+
 int            zinet_ifindex   (char *ifname);
 struct in_addr zinet_aton      (char *addr);
 int            zinet_masktolen (struct in_addr mask);

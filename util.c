@@ -20,12 +20,72 @@
 
 #include <arpa/inet.h>          /* inet_ntoa() */
 #include <string.h>
+#include <stdio.h>              /* fprintf() */
+#include <stdlib.h>             /* exit() */
 #include <net/if.h>
-#include <netinet/in.h>
 #include <sys/ioctl.h>
-#include <sys/socket.h>
 #include <unistd.h>             /* close() */
 
+#include "util.h"
+
+/* Defined in zroute.c */
+extern char *program_version;
+extern char *program_bug_address;
+
+int
+usage (void)
+{
+  fprintf (stderr,
+           "Usage: zroute [OPTION] {add|del} [-host|-net] TARGET [netmask NETMASK] [gw GATEWAY]\n"
+           "                                                       [metric METRIC] [dev IFNAME]\n"
+           "\n"
+           "Where TARGET is one of     NET/PREFIXLEN | HOST | NET | default\n"
+           "\n"
+           " -v, --version             Display firmware version\n"
+           " -V, --verbose             Verbose output, debug=0x9\n"
+           " -?, --help                This help text.\n"
+           "------------------------------------------------------------------------------\n"
+           "The zroute tool is free software, thanks to the GNU General Public License.\n"
+           "Copyright (C) 2011  %s\n\n", program_bug_address);
+
+  return 1;
+}
+
+char *
+pop_token (int *opt, int argc, char *argv[], char *keyword)
+{
+  int pos = *opt;
+  char *token = NULL;
+
+  if (pos < argc)
+    {
+      token = argv[pos++];
+      *opt = pos;
+    }
+
+  if (!token)
+    {
+      if (keyword)
+        fprintf (stderr, "Missing argument to keyword %s\n", keyword);
+      usage ();
+      exit (1);
+    }
+
+  return token;
+}
+
+int
+pop_token_match (int *opt, int argc, char *argv[], char *token, char *keyword, char **result)
+{
+  int check = !strcmp (token, keyword);
+
+  if (check)
+    *result = pop_token (opt, argc, argv, keyword);
+  else
+    *result = NULL;
+
+  return check;
+}
 
 int
 zinet_ifindex (char *ifname)

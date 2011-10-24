@@ -33,10 +33,9 @@
 
 #define ZROUTE_METRIC_DEFAULT 0
 
-static int debug = 0;
-extern char *__progname;
-static const char *program_version = "zroute v" VERSION;
-static const char *program_bug_address = "Joachim Nilsson <mailto:troglobit@gmail.com>";
+int debug = 1;
+const char *program_version = "zroute v" VERSION;
+const char *program_bug_address = "Joachim Nilsson <mailto:troglobit@gmail.com>";
 
 /* All information about zebra. */
 struct thread_master *master;	/* Workaround to allow linking with libzebra.a */
@@ -136,26 +135,8 @@ pend_zebra_reply (struct zclient *zclient)
   return 0;
 }
 
-static int
-usage (void)
-{
-  fprintf (stderr,
-           "Usage: %s [OPTION] {add|del} TARGET NETMASK {GATEWAY|IFNAME}\n"
-           "       %s [OPTION] {add|del} TARGET/LEN {GATEWAY|IFNAME}\n"
-           "\n"
-           " -v, --version             Display firmware version\n"
-           " -V, --verbose             Verbose output, debug=0x9\n"
-           " -?, --help                This help text.\n"
-           "------------------------------------------------------------------------------\n"
-           "The zroute tool is free software, thanks to the GNU General Public License.\n"
-           "Copyright (C) 2011  %s\n\n",
-           __progname, __progname, program_bug_address);
-
-  return 1;
-}
-
 int
-main (int argc, char **argv)
+main (int argc, char *argv[])
 {
   int opt = 1, ret, len = -1, metric = ZROUTE_METRIC_DEFAULT;
   u_char op = 0;
@@ -172,7 +153,7 @@ main (int argc, char **argv)
 
   while (opt < argc)
     {
-      token = argv[opt++];
+      token = POP_TOKEN();
 
       if (!strcmp (token, "-V") || !strcmp (token, "--verbose"))
         {
@@ -198,23 +179,26 @@ main (int argc, char **argv)
           else
             op = ZEBRA_IPV4_ROUTE_DELETE;
 
-          target = argv[opt++];
-          if (!strcmp (target, "default"))
+          token = POP_TOKEN();
+          if (!strcmp (token, "default"))
             {
               target = "0.0.0.0";
               len = 0;
             }
           else
             {
-              if (!strcmp (target, "-net"))
+              if (POP_TOKEN_MATCH("-net", target))
                 {
                   /* Do nothing, netmask or /LEN required. */
-                  target = argv[opt++];
                 }
-              else if (!strcmp (target, "-host"))
+              else if (POP_TOKEN_MATCH("-host", target))
                 {
-                  target = argv[opt++];
                   len = 32;
+                }
+              else
+                {
+                  /* Neigher -net or -host */
+                  target = token;
                 }
 
               ptr = strchr (target, '/');
@@ -230,32 +214,28 @@ main (int argc, char **argv)
           continue;
         }
 
-      if (!strcmp (token, "netmask"))
+      if (POP_TOKEN_MATCH("netmask", netmask))
         {
-          netmask = argv[opt++];
           len = zinet_masktolen (zinet_aton (netmask));
           DBG("target:%s netmask %s => len %d", target, netmask, len);
           continue;
         }
 
-      if (!strcmp (token, "gw"))
+      if (POP_TOKEN_MATCH("gw", gateway))
         {
-          gateway = argv[opt++];
-          DBG("gw:%s", gateway);
           gw = zinet_aton (gateway);
+          DBG("gw:%s(0x%x)", gateway, gw.s_addr);
           continue;
         }
 
-      if (!strcmp (token, "dev"))
+      if (POP_TOKEN_MATCH("dev", ifname))
         {
-          ifname = argv[opt++];
           DBG("dev:%s", ifname);
           continue;
         }
 
-      if (!strcmp (token, "metric"))
+      if (POP_TOKEN_MATCH("metric", token))
         {
-          token = argv[opt++];
           metric = atoi (token);
           DBG("metric:%d", metric);
           continue;
