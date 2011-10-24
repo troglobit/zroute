@@ -79,10 +79,11 @@ pop_token_match (int *opt, int argc, char *argv[], char *token, char *keyword, c
 {
   int check = !strcmp (token, keyword);
 
+  DBG("token:%s vs keyword:%s => check:%d", token, keyword, check);
   if (check)
-    *result = pop_token (opt, argc, argv, keyword);
-  else
-    *result = NULL;
+    {
+      *result = pop_token (opt, argc, argv, keyword);
+    }
 
   return check;
 }

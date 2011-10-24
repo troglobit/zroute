@@ -27,6 +27,7 @@
 #define POP_TOKEN_MATCH(keyword, str) pop_token_match (&opt, argc, argv, token, keyword, &str)
 
 extern char   *__progname;
+extern int debug;
 
 int            usage           (void);
 

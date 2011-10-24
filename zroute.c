@@ -33,7 +33,7 @@
 
 #define ZROUTE_METRIC_DEFAULT 0
 
-int debug = 1;
+int debug = 0;
 const char *program_version = "zroute v" VERSION;
 const char *program_bug_address = "Joachim Nilsson <mailto:troglobit@gmail.com>";
 
